@@ -1,0 +1,323 @@
+-- OVERCLOCK MENU SYSTEM
+-- StarterPlayer > StarterPlayerScripts (LocalScript)
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+-- =====================
+-- STATE VARIABLES
+-- =====================
+
+local highlightsEnabled = false
+local activeHighlighters = {}
+local tpItemsEnabled = false
+
+-- =====================
+-- GUI ROOT
+-- =====================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "overclock"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- =====================
+-- TOGGLE BUTTON
+-- =====================
+
+local toggle = Instance.new("TextButton")
+toggle.Name = "ToggleButton"
+toggle.Size = UDim2.fromScale(0.12, 0.06)
+toggle.Position = UDim2.fromScale(0.02, 0.45)
+toggle.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+toggle.TextColor3 = Color3.fromRGB(0, 255, 0)
+toggle.Text = "OVERCLOCK"
+toggle.Font = Enum.Font.Code
+toggle.TextScaled = true
+toggle.BorderSizePixel = 0
+toggle.Parent = gui
+Instance.new("UICorner", toggle).CornerRadius = UDim.new(0.25, 0)
+
+-- =====================
+-- MAIN FRAME
+-- =====================
+
+local main = Instance.new("Frame")
+main.Name = "MainFrame"
+main.Size = UDim2.fromScale(0.45, 0.6)
+main.Position = UDim2.fromScale(0.275, 0.2)
+main.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+main.Visible = false
+main.Parent = gui
+Instance.new("UICorner", main).CornerRadius = UDim.new(0.05, 0)
+
+-- =====================
+-- TITLE BAR
+-- =====================
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.fromScale(1, 0.12)
+title.BackgroundTransparency = 1
+title.Text = "OVERCLOCK INTERFACE"
+title.TextColor3 = Color3.fromRGB(0, 255, 0)
+title.Font = Enum.Font.Code
+title.TextScaled = true
+title.Parent = main
+
+-- =====================
+-- PAGE BAR
+-- =====================
+
+local pageBar = Instance.new("Frame")
+pageBar.Position = UDim2.fromScale(0, 0.12)
+pageBar.Size = UDim2.fromScale(1, 0.1)
+pageBar.BackgroundTransparency = 1
+pageBar.Parent = main
+
+local function makePageButton(text, pos)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.fromScale(0.3, 0.8)
+	b.Position = pos
+	b.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	b.TextColor3 = Color3.fromRGB(0, 255, 0)
+	b.Text = text
+	b.Font = Enum.Font.Code
+	b.TextScaled = true
+	b.BorderSizePixel = 0
+	b.Parent = pageBar
+	Instance.new("UICorner", b)
+	return b
+end
+
+local movementBtn = makePageButton("MOVEMENT", UDim2.fromScale(0.05, 0.1))
+local utilityBtn  = makePageButton("UTILITY",  UDim2.fromScale(0.35, 0.1))
+
+-- =====================
+-- PAGES
+-- =====================
+
+local pages = Instance.new("Folder")
+pages.Name = "Pages"
+pages.Parent = main
+
+local function makePage()
+	local p = Instance.new("Frame")
+	p.Size = UDim2.fromScale(1, 0.78)
+	p.Position = UDim2.fromScale(0, 0.22)
+	p.BackgroundTransparency = 1
+	p.Visible = false
+	p.Parent = pages
+	return p
+end
+
+local movementPage = makePage()
+local utilityPage = makePage()
+movementPage.Visible = true
+
+-- =====================
+-- ABILITY BUTTON CREATOR (WITH GLOW)
+-- =====================
+
+local function abilityButton(parent, text, pos, callback)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.fromScale(0.4, 0.2)
+	b.Position = pos
+	b.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+	b.TextColor3 = Color3.fromRGB(0, 255, 0)
+	b.Text = text
+	b.Font = Enum.Font.Code
+	b.TextScaled = true
+	b.BorderSizePixel = 0
+	b.Parent = parent
+	Instance.new("UICorner", b)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(0, 255, 0)
+	stroke.Thickness = 2
+	stroke.Transparency = 1
+	stroke.Parent = b
+
+	local pulse = TweenService:Create(
+		stroke,
+		TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{Transparency = 0.2}
+	)
+
+	b.MouseButton1Click:Connect(function()
+		callback(b, stroke, pulse)
+	end)
+end
+
+-- =====================
+-- PLAYER HIGHLIGHT SYSTEM (TEAM-AWARE)
+-- =====================
+
+local function DisconnectHighlighter(data)
+	if data.Highlighter then data.Highlighter:Destroy() end
+	for _, conn in pairs(data.Connections or {}) do
+		if conn then conn:Disconnect() end
+	end
+end
+
+local function SetupCharacter(Player, Character)
+	if not Character then return end
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+	if not Humanoid then return end
+
+	local Highlighter = Instance.new("Highlight")
+	Highlighter.Adornee = Character
+	Highlighter.Parent = Character
+	Highlighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or Color3.fromRGB(255,48,51)
+	Highlighter.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+
+	local Connections = {}
+
+	table.insert(Connections, Player:GetPropertyChangedSignal("TeamColor"):Connect(function()
+		Highlighter.FillColor = (Player.TeamColor and Player.TeamColor.Color) or Color3.fromRGB(255,48,51)
+	end))
+
+	table.insert(Connections, Humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+		if Humanoid.Health <= 0 then
+			DisconnectHighlighter({Highlighter = Highlighter, Connections = Connections})
+		end
+	end))
+
+	table.insert(Connections, Character.AncestryChanged:Connect(function(_, parent)
+		if not parent then
+			DisconnectHighlighter({Highlighter = Highlighter, Connections = Connections})
+		end
+	end))
+
+	activeHighlighters[Character] = {Highlighter = Highlighter, Connections = Connections}
+end
+
+local function ApplyHighlight(Player)
+	if highlightsEnabled then
+		if Player.Character then SetupCharacter(Player, Player.Character) end
+		Player.CharacterAdded:Connect(function(char)
+			if highlightsEnabled then SetupCharacter(Player, char) end
+		end)
+	end
+end
+
+-- =====================
+-- MOVEMENT ABILITIES
+-- =====================
+
+abilityButton(movementPage, "SPEED BOOST", UDim2.fromScale(0.05, 0.1), function()
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then hum.WalkSpeed = 80 end
+end)
+
+abilityButton(movementPage, "JUMP BOOST", UDim2.fromScale(0.55, 0.1), function()
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then hum.JumpPower = 120 end
+end)
+
+-- =====================
+-- UTILITY ABILITIES
+-- =====================
+
+-- Teleport Up
+abilityButton(utilityPage, "TELEPORT UP", UDim2.fromScale(0.55, 0.1), function()
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	if root then
+		root.CFrame = root.CFrame + Vector3.new(0, 100, 0)
+	end
+end)
+
+-- Toggleable TP ALL ITEMS
+spawn(function()
+	while true do
+		if tpItemsEnabled and player.Character then
+			local root = player.Character:FindFirstChild("HumanoidRootPart")
+			if root then
+				for _, obj in ipairs(workspace:GetDescendants()) do
+					if obj:IsA("Tool") then
+						local handle = obj:FindFirstChild("Handle")
+						if handle and handle:IsA("BasePart") then
+							handle.CFrame = root.CFrame * CFrame.new(math.random(-5,5),0,math.random(-5,5))
+						end
+					elseif obj:IsA("BasePart") and obj.Name == "ItemDrop" then
+						obj.CFrame = root.CFrame * CFrame.new(math.random(-6,6),0,math.random(-6,6))
+					end
+				end
+			end
+		end
+		wait(0.2)
+	end
+end)
+
+abilityButton(utilityPage, "TP ALL ITEMS", UDim2.fromScale(0.05, 0.25), function(_, stroke, pulse)
+	tpItemsEnabled = not tpItemsEnabled
+	if tpItemsEnabled then
+		pulse:Play()
+		stroke.Transparency = 0.2
+	else
+		pulse:Cancel()
+		stroke.Transparency = 1
+	end
+end)
+
+-- Highlight All Players
+abilityButton(utilityPage, "HIGHLIGHT PLAYERS", UDim2.fromScale(0.05, 0.4),
+	function(_, stroke, pulse)
+		highlightsEnabled = not highlightsEnabled
+		if highlightsEnabled then
+			pulse:Play()
+			stroke.Transparency = 0.2
+			for _, plr in ipairs(Players:GetPlayers()) do
+				ApplyHighlight(plr)
+			end
+		else
+			pulse:Cancel()
+			stroke.Transparency = 1
+			for _, data in pairs(activeHighlighters) do
+				DisconnectHighlighter(data)
+			end
+			activeHighlighters = {}
+		end
+	end
+)
+
+-- =====================
+-- EJECT SYSTEM
+-- =====================
+
+local function ejectOverclock()
+	tpItemsEnabled = false
+	highlightsEnabled = false
+	for _, data in pairs(activeHighlighters) do
+		DisconnectHighlighter(data)
+	end
+	activeHighlighters = {}
+	if gui then gui:Destroy() end
+end
+
+abilityButton(utilityPage, "EJECT GUI", UDim2.fromScale(0.55, 0.4), function()
+	ejectOverclock()
+end)
+
+-- =====================
+-- PAGE SWITCHING
+-- =====================
+
+movementBtn.MouseButton1Click:Connect(function()
+	movementPage.Visible = true
+	utilityPage.Visible = false
+end)
+
+utilityBtn.MouseButton1Click:Connect(function()
+	movementPage.Visible = false
+	utilityPage.Visible = true
+end)
+
+-- =====================
+-- TOGGLE MENU
+-- =====================
+
+toggle.MouseButton1Click:Connect(function()
+	main.Visible = not main.Visible
+end)
