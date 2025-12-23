@@ -1,0 +1,171 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local SoundService = game:GetService("SoundService")
+local Camera = workspace.CurrentCamera
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local PASSWORD = "666"
+local input = ""
+
+-- SOUNDS
+local function makeSound(id, volume, pitch)
+	local s = Instance.new("Sound")
+	s.SoundId = "rbxassetid://"..id
+	s.Volume = volume or 1
+	s.PlaybackSpeed = pitch or 1
+	s.Parent = SoundService
+	return s
+end
+
+local clickSound   = makeSound(9118828565, 0.8, 1.05)
+local errorSound   = makeSound(138081500, 1, 0.9)
+local successSound = makeSound(541909867, 1, 1)
+local powerDown    = makeSound(9120044071, 1, 1)
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "OverclockKeypad"
+gui.Parent = player:WaitForChild("PlayerGui")
+gui.IgnoreGuiInset = true
+
+local frame = Instance.new("Frame")
+frame.Parent = gui
+frame.AnchorPoint = Vector2.new(0.5,0.5)
+frame.Position = UDim2.fromScale(0.5,0.5)
+frame.Size = UDim2.fromScale(0.9,0.8)
+frame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+frame.BorderSizePixel = 0
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,24)
+
+-- Display
+local display = Instance.new("TextLabel")
+display.Parent = frame
+display.AnchorPoint = Vector2.new(0.5,0)
+display.Position = UDim2.fromScale(0.5,0.15)
+display.Size = UDim2.fromScale(0.9,0.1)
+display.BackgroundColor3 = Color3.new(0,0,0)
+display.TextColor3 = Color3.fromRGB(0,255,180)
+display.Font = Enum.Font.Code
+display.TextScaled = true
+display.Text = ""
+Instance.new("UICorner", display).CornerRadius = UDim.new(0,12)
+
+----------------------------------------------------------------
+-- BUTTON CREATION FUNCTION (SCALED)
+----------------------------------------------------------------
+local function createButton(label, scaleX, scaleY, scaleWidth, scaleHeight, color)
+	local b = Instance.new("TextButton")
+	b.Parent = frame
+	b.AnchorPoint = Vector2.new(0.5,0.5)
+	b.Position = UDim2.fromScale(scaleX, scaleY)
+	b.Size = UDim2.fromScale(scaleWidth, scaleHeight)
+	b.Text = label
+	b.Font = Enum.Font.GothamBold
+	b.TextScaled = true
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = color
+	b.AutoButtonColor = false
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,12)
+	Instance.new("UIStroke", b).Transparency = 0.5
+
+	-- Glow
+	local glow = Instance.new("Frame")
+	glow.Parent = b
+	glow.AnchorPoint = Vector2.new(0.5,0.5)
+	glow.Position = UDim2.fromScale(0.5,0.5)
+	glow.Size = UDim2.fromScale(1,1)
+	glow.BackgroundColor3 = Color3.fromRGB(0,255,180)
+	glow.BackgroundTransparency = 0.8
+	glow.ZIndex = b.ZIndex - 1
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(0,12)
+
+	task.spawn(function()
+		while b.Parent do
+			TweenService:Create(glow, TweenInfo.new(1.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {BackgroundTransparency = 0.6}):Play()
+			task.wait(1.2)
+		end
+	end)
+
+	-- Press animation
+	local function animatePress(button)
+		local origSize = button.Size
+		TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = UDim2.new(origSize.X.Scale*0.9,0,origSize.Y.Scale*0.9,0)
+		}):Play()
+		task.wait(0.08)
+		TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = origSize}):Play()
+	end
+
+	-- Click logic
+	b.MouseButton1Click:Connect(function()
+		clickSound:Play()
+		animatePress(b)
+
+		if label == "C" then
+			input = ""
+			display.Text = ""
+		elseif label == "↵" then
+			if input == PASSWORD then
+				successSound:Play()
+				display.Text = "AWAKENING..."
+				task.wait(0.6)
+
+				local function outAnimation(onNextGui)
+					powerDown:Play()
+					gui.Enabled = false
+					if onNextGui then
+						onNextGui()
+					end
+				end
+
+				outAnimation(function()
+					print("Next GUI should open now!") -- Replace with your GUI code
+					gui:Destroy()
+					loadstring(game:HttpGet("https://raw.githubusercontent.com/H389989/Overclock-Menu/refs/heads/main/V1P2"))()
+				end)
+
+			else
+				errorSound:Play()
+				display.Text = "ACCESS DENIED"
+				input = ""
+			end
+		else
+			if #input < 6 then
+				input ..= label
+				display.Text = string.rep("●", #input)
+			end
+		end
+	end)
+end
+
+----------------------------------------------------------------
+-- CREATE BUTTONS INDIVIDUALLY (SCALED POSITIONS)
+----------------------------------------------------------------
+local startX = 0.2
+local startY = 0.35
+local gapX = 0.3
+local gapY = 0.15
+local buttonW = 0.2
+local buttonH = 0.12
+
+-- Row 1
+createButton("1", startX + 0*gapX, startY + 0*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("2", startX + 1*gapX, startY + 0*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("3", startX + 2*gapX, startY + 0*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+
+-- Row 2
+createButton("4", startX + 0*gapX, startY + 1*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("5", startX + 1*gapX, startY + 1*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("6", startX + 2*gapX, startY + 1*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+
+-- Row 3
+createButton("7", startX + 0*gapX, startY + 2*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("8", startX + 1*gapX, startY + 2*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("9", startX + 2*gapX, startY + 2*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+
+-- Row 4
+createButton("C", startX + 0*gapX, startY + 3*gapY, buttonW, buttonH, Color3.fromRGB(120,30,30))
+createButton("0", startX + 1*gapX, startY + 3*gapY, buttonW, buttonH, Color3.fromRGB(25,25,25))
+createButton("↵", startX + 2*gapX, startY + 3*gapY, buttonW, buttonH, Color3.fromRGB(30,120,60))
